@@ -1,0 +1,5 @@
+@use '~@chewy/kib-foundations/src/spacing';
+
+.example {
+  margin: spacing.get('s6', 0, 's4');
+}
