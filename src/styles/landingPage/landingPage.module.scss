@@ -1,0 +1,171 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.heroSection {
+  margin-bottom: 1rem;
+}
+
+.heroHeading {
+  margin-bottom: 1.5rem;
+}
+
+.heroActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+// Time and Date Section
+.timeDateSection {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.timeDateCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 2.5rem 3rem;
+  color: white;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  min-width: 400px;
+}
+
+.greeting {
+  font-size: 1.25rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+}
+
+.time {
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  margin: 0.5rem 0;
+  line-height: 1;
+}
+
+.date {
+  font-size: 1.1rem;
+  opacity: 0.85;
+  margin-top: 0.75rem;
+  font-weight: 400;
+}
+
+// Calendar Section
+.calendarSection {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.calendarCard {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 350px;
+  max-width: 400px;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.calendarMonth {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.calendarWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.5rem 0;
+}
+
+.calendarDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.calendarDay,
+.calendarDayEmpty {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #495057;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.calendarDay {
+  cursor: pointer;
+  
+  &:hover {
+    background: #f8f9fa;
+    color: #007bff;
+  }
+}
+
+.calendarDayToday {
+  background: #007bff;
+  color: white;
+  font-weight: 600;
+  
+  &:hover {
+    background: #0056b3;
+    color: white;
+  }
+}
+
+.calendarDayEmpty {
+  visibility: hidden;
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .timeDateCard {
+    min-width: auto;
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+
+  .time {
+    font-size: 2.5rem;
+  }
+
+  .calendarCard {
+    min-width: auto;
+    width: 100%;
+  }
+}
+

@@ -1,0 +1,59 @@
+
+.appLayout {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 
+      "header"
+      "main";
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .header {
+    grid-area: header;
+    background: #007bff;
+    border-bottom: 1px solid #e9ecef;
+    z-index: 10;
+  }
+  
+  .mainContent {
+    grid-area: main;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-areas: "sidebar content";
+    overflow: hidden;
+  }
+  
+  .sidebar {
+    grid-area: sidebar;
+    background: #f8f9fa;
+    border-right: 1px solid #e9ecef;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+  
+  .contentArea {
+    grid-area: content;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: white;
+  }
+  
+  // Responsive breakpoints
+  @media (max-width: 1024px) {
+    .mainContent {
+      grid-template-columns: 240px 1fr;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .mainContent {
+      grid-template-columns: 1fr;
+      grid-template-areas: "content";
+    }
+    
+    .sidebar {
+      display: none;
+    }
+  } 
+  

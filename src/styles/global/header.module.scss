@@ -1,0 +1,78 @@
+.header {
+    background: white;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .headerContent {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .appTitle {
+    color: #007bff;
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.5rem;
+  }
+  
+  .subtitle {
+    color: #6c757d;
+    font-weight: 400;
+    font-size: 0.875rem;
+  }
+  
+  .navigation {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .userProfile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  
+  .userName {
+    line-height: 1;
+  }
+  
+  // Responsive design
+  @media (max-width: 768px) {
+    .navigation {
+      display: none;
+    }
+    
+    .brand {
+      .subtitle {
+        display: none;
+      }
+    }
+  } 

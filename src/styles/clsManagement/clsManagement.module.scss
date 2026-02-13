@@ -1,0 +1,21 @@
+.clsManagement {
+  width: 100%;
+}
+
+.tabNavigation {
+  display: flex;
+  gap: 1rem;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+.activeTab {
+  border-bottom: 2px solid #007bff;
+  margin-bottom: -2px;
+}
+
+.tabContent {
+  margin-top: 2rem;
+}
+
