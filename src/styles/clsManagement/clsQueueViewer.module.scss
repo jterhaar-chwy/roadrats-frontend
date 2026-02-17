@@ -12,7 +12,7 @@
   border-radius: 8px;
 }
 
-.databaseSelector {
+.queryTabs {
   display: flex;
   gap: 0.75rem;
 }
@@ -22,9 +22,19 @@
   color: white;
 }
 
+.errorBanner {
+  background: #f8d7da;
+  color: #842029;
+  border: 1px solid #f5c2c7;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
 .queueStats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
@@ -33,18 +43,21 @@
   background: white;
   border: 1px solid #e9ecef;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .statLabel {
   color: #6c757d;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .statValue {
@@ -66,9 +79,14 @@
   border-bottom: 1px solid #e9ecef;
 }
 
+.tableWrapper {
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 900px;
 }
 
 .table thead {
@@ -76,24 +94,31 @@
 }
 
 .table th {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
   color: #495057;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #e9ecef;
+  white-space: nowrap;
 }
 
 .table td {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #f1f3f5;
   color: #495057;
+  font-size: 0.875rem;
 }
 
 .table tbody tr:hover {
   background: #f8f9fa;
+}
+
+.errorCell {
+  color: #842029;
+  font-size: 0.8rem;
 }
 
 .statusBadge {
@@ -102,7 +127,8 @@
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: capitalize;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .statusPending {
@@ -137,6 +163,95 @@
   opacity: 0.8;
 }
 
+/* Detail Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #212529;
+  }
+}
+
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detailLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.xmlSection {
+  margin-bottom: 1.5rem;
+
+  h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #495057;
+    margin: 0 0 0.5rem 0;
+  }
+}
+
+.xmlContent {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 0.8rem;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  color: #212529;
+}
+
 @media (max-width: 768px) {
   .viewerHeader {
     flex-direction: column;
@@ -144,7 +259,7 @@
     align-items: stretch;
   }
 
-  .databaseSelector {
+  .queryTabs {
     flex-direction: column;
   }
 
@@ -152,13 +267,16 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .table {
-    font-size: 0.875rem;
+  .modalOverlay {
+    padding: 1rem;
   }
 
-  .table th,
-  .table td {
-    padding: 0.75rem 0.5rem;
+  .modal {
+    max-height: 90vh;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
