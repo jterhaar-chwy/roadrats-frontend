@@ -25,6 +25,11 @@ export const Header: React.FC = () => {
               CLS Route Management
             </KibButtonNew>
           </Link>
+          <Link href="/srm-download">
+            <KibButtonNew size="small">
+              SRM Download
+            </KibButtonNew>
+          </Link>
         </nav>
 
         {/* Right side - User actions */}
