@@ -3,10 +3,14 @@ import styles from '@/styles/clsManagement/clsManagement.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { ClsQueueViewer } from './ClsQueueViewer';
+import { QueueStatusPanel } from './QueueStatusPanel';
+import { SaturdayDeliveryPanel } from './SaturdayDeliveryPanel';
 import { DatabaseManager } from './DatabaseManager';
 
+type Tab = 'debugger' | 'queueStatus' | 'saturday' | 'database';
+
 export const ClsManagementDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'queue' | 'database'>('queue');
+  const [activeTab, setActiveTab] = useState<Tab>('debugger');
 
   return (
     <div className={styles.clsManagement}>
@@ -17,10 +21,24 @@ export const ClsManagementDashboard: React.FC = () => {
         <div className={styles.tabNavigation}>
           <KibButtonNew 
             size="medium"
-            onClick={() => setActiveTab('queue')}
-            className={activeTab === 'queue' ? styles.activeTab : ''}
+            onClick={() => setActiveTab('debugger')}
+            className={activeTab === 'debugger' ? styles.activeTab : ''}
           >
-            CLS Queue Viewer
+            CLS Debugger
+          </KibButtonNew>
+          <KibButtonNew 
+            size="medium"
+            onClick={() => setActiveTab('queueStatus')}
+            className={activeTab === 'queueStatus' ? styles.activeTab : ''}
+          >
+            Queue Status
+          </KibButtonNew>
+          <KibButtonNew 
+            size="medium"
+            onClick={() => setActiveTab('saturday')}
+            className={activeTab === 'saturday' ? styles.activeTab : ''}
+          >
+            Saturday Delivery
           </KibButtonNew>
           <KibButtonNew 
             size="medium"
@@ -32,7 +50,9 @@ export const ClsManagementDashboard: React.FC = () => {
         </div>
 
         <div className={styles.tabContent}>
-          {activeTab === 'queue' && <ClsQueueViewer />}
+          {activeTab === 'debugger' && <ClsQueueViewer />}
+          {activeTab === 'queueStatus' && <QueueStatusPanel />}
+          {activeTab === 'saturday' && <SaturdayDeliveryPanel />}
           {activeTab === 'database' && <DatabaseManager />}
         </div>
       </KibSectionHeading>

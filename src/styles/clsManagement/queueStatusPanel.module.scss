@@ -1,0 +1,419 @@
+.panel {
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.errorBanner {
+  background: #f8d7da;
+  color: #842029;
+  border: 1px solid #f5c2c7;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.summaryBar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #007bff;
+}
+
+.warn {
+  color: #dc3545;
+}
+
+.queueGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.queueCard {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.hasStuck {
+  border-color: #f5c2c7;
+}
+
+.queueCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+
+  &:hover {
+    background: #f8f9fa;
+  }
+}
+
+.queueName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.queueType {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+}
+
+.queueCount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.countOk {
+  color: #198754;
+}
+
+.countWarn {
+  color: #dc3545;
+}
+
+.queueDetails {
+  border-top: 1px solid #e9ecef;
+  padding: 0.75rem 1.25rem 1rem;
+}
+
+.queueDetailsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.queueTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th {
+    padding: 0.4rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+  }
+
+  td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #f1f3f5;
+    color: #495057;
+  }
+
+  tbody tr:hover {
+    background: #f8f9fa;
+  }
+}
+
+.errorCell {
+  color: #842029;
+  font-size: 0.75rem;
+}
+
+.emptyState {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.clickableRow {
+  cursor: pointer;
+
+  &:hover {
+    background: #e8f4fd !important;
+  }
+}
+
+/* XML Log Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.modalSubtitle {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.2rem;
+  display: block;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 0 0.25rem;
+  line-height: 1;
+
+  &:hover {
+    color: #212529;
+  }
+}
+
+.modalLoading {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.modalEmpty {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+/* Log entry selector tabs (when multiple log entries) */
+.logEntryTabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.logEntryTab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+
+  &:hover {
+    color: #212529;
+    background: #e9ecef;
+  }
+}
+
+.logEntryTabActive {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: white;
+}
+
+.logEntryTime {
+  font-size: 0.7rem;
+  color: #adb5bd;
+  font-weight: 400;
+}
+
+/* Detail tabs (Summary / XML Request / XML Response) */
+.logDetail {
+  padding: 0;
+}
+
+.logDetailTabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.logDetailTab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+
+  &:hover {
+    color: #212529;
+  }
+}
+
+.logDetailTabActive {
+  color: #007bff;
+  border-bottom-color: #007bff;
+}
+
+/* Summary tab */
+.logSummary {
+  padding: 1.25rem 1.5rem;
+}
+
+.logSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.logField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.logFieldLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logFieldValue {
+  font-size: 0.85rem;
+  color: #212529;
+  word-break: break-all;
+}
+
+.logErrorBlock {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f3f5;
+}
+
+.logErrorPre {
+  margin: 0.4rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #f5c2c7;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #842029;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* XML panes */
+.logXmlPane {
+  padding: 1rem 1.5rem;
+}
+
+.logXmlActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.logXmlPre {
+  margin: 0;
+  padding: 1rem;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
