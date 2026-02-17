@@ -18,22 +18,32 @@
   
   .mainContent {
     grid-area: main;
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    grid-template-areas: "sidebar content";
+    display: flex;
     overflow: hidden;
   }
-  
-  .sidebar {
-    grid-area: sidebar;
+
+  .sidebarWrapper {
     background: #f8f9fa;
     border-right: 1px solid #e9ecef;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1.5rem;
+    width: 280px;
+    min-width: 280px;
+    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+
+    &.hidden {
+      width: 0;
+      min-width: 0;
+      padding: 0;
+      opacity: 0;
+      border-right: none;
+    }
   }
   
   .contentArea {
-    grid-area: content;
+    flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
     background: white;
@@ -41,18 +51,14 @@
   
   // Responsive breakpoints
   @media (max-width: 1024px) {
-    .mainContent {
-      grid-template-columns: 240px 1fr;
+    .sidebarWrapper {
+      width: 240px;
+      min-width: 240px;
     }
   }
   
   @media (max-width: 768px) {
-    .mainContent {
-      grid-template-columns: 1fr;
-      grid-template-areas: "content";
-    }
-    
-    .sidebar {
+    .sidebarWrapper {
       display: none;
     }
   } 

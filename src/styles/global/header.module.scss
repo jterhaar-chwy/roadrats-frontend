@@ -18,8 +18,58 @@
   
   .brand {
     display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .brandText {
+    display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .menuToggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgba(0, 123, 255, 0.1);
+    }
+  }
+
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 20px;
+
+    span {
+      display: block;
+      height: 2px;
+      width: 100%;
+      background: #495057;
+      border-radius: 2px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    &.open {
+      span:nth-child(1) {
+        transform: translateY(6px) rotate(45deg);
+      }
+      span:nth-child(2) {
+        opacity: 0;
+      }
+      span:nth-child(3) {
+        transform: translateY(-6px) rotate(-45deg);
+      }
+    }
   }
   
   .appTitle {

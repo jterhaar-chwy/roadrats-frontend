@@ -3,14 +3,33 @@ import Link from 'next/link';
 import styles from '@/styles/global/header.module.scss';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, sidebarOpen }) => {
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
         {/* Left side - Logo/Brand */}
         <div className={styles.brand}>
-          <h1 className={styles.appTitle}>Dashboard</h1>
-          <span className={styles.subtitle}>Monitoring & Analytics</span>
+          <button
+            className={styles.menuToggle}
+            onClick={onToggleSidebar}
+            aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+          >
+            <span className={`${styles.hamburger} ${sidebarOpen ? styles.open : ''}`}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+          <div className={styles.brandText}>
+            <h1 className={styles.appTitle}>Dashboard</h1>
+            <span className={styles.subtitle}>Monitoring & Analytics</span>
+          </div>
         </div>
 
         {/* Center - Navigation */}
@@ -28,6 +47,11 @@ export const Header: React.FC = () => {
           <Link href="/srm-download">
             <KibButtonNew size="small">
               SRM Download
+            </KibButtonNew>
+          </Link>
+          <Link href="/database-errors">
+            <KibButtonNew size="small">
+              Database Errors
             </KibButtonNew>
           </Link>
         </nav>

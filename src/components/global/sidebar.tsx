@@ -3,7 +3,27 @@ import styles from '@/styles/global/sidebar.module.scss';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  ratsEnabled?: boolean;
+  onToggleRats?: () => void;
+  ratFrequency?: number;
+  onRatFrequencyChange?: (value: number) => void;
+}
+
+const FREQUENCY_LABELS: Record<number, string> = {
+  1: 'Rare',
+  2: 'Occasional',
+  3: 'Normal',
+  4: 'Frequent',
+  5: 'Swarm',
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  ratsEnabled = true,
+  onToggleRats,
+  ratFrequency = 3,
+  onRatFrequencyChange,
+}) => {
   return (
     <aside className={styles.sidebar}>
       {/* Quick Actions - F-shape: vertical scan area */}
@@ -92,6 +112,50 @@ export const Sidebar: React.FC = () => {
               <div className={styles.statusIndicator + ' ' + styles.statusYellow}></div>
               <span>Monitoring</span>
             </div>
+          </div>
+        </KibSectionHeading>
+      </div>
+
+      {/* Rat Controls */}
+      <div className={styles.section}>
+        <KibSectionHeading
+          heading="Rat Patrol"
+          className={styles.sectionHeading}
+        >
+          <div className={styles.ratControls}>
+            <div className={styles.ratToggleRow}>
+              <span className={styles.ratToggleLabel}>Rats</span>
+              <button
+                className={`${styles.ratToggle} ${ratsEnabled ? styles.ratToggleOn : ''}`}
+                onClick={onToggleRats}
+                aria-label={ratsEnabled ? 'Disable rats' : 'Enable rats'}
+              >
+                <span className={styles.ratToggleKnob} />
+              </button>
+            </div>
+            {ratsEnabled && (
+              <div className={styles.ratFrequencyControl}>
+                <div className={styles.ratFrequencyHeader}>
+                  <span className={styles.ratFrequencyLabel}>Frequency</span>
+                  <span className={styles.ratFrequencyValue}>
+                    {FREQUENCY_LABELS[ratFrequency] || 'Normal'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={ratFrequency}
+                  onChange={(e) => onRatFrequencyChange?.(Number(e.target.value))}
+                  className={styles.ratSlider}
+                />
+                <div className={styles.ratSliderLabels}>
+                  <span>Rare</span>
+                  <span>Swarm</span>
+                </div>
+              </div>
+            )}
           </div>
         </KibSectionHeading>
       </div>
