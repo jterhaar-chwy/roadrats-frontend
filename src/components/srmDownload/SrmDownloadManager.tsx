@@ -57,6 +57,12 @@ export const SrmDownloadManager: React.FC = () => {
   const [showRoutes, setShowRoutes] = useState(true);
   const [contentSearch, setContentSearch] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<any>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
+  const [validationSearch, setValidationSearch] = useState('');
+  const [validationFilters, setValidationFilters] = useState<Record<string, string>>({});
 
   const addLog = (level: LogEntry['level'], message: string, details?: any) => {
     const logEntry: LogEntry = {
@@ -112,7 +118,50 @@ export const SrmDownloadManager: React.FC = () => {
     setLogs([]);
     setContentSearch('');
     setColumnFilters({});
+    setValidationResults(null);
+    setValidationError(null);
+    setExpandedRoute(null);
     addLog('info', 'Process reset - ready to start');
+  };
+
+  const validateSrmFiles = async () => {
+    setIsValidating(true);
+    setValidationError(null);
+    setValidationResults(null);
+    addLog('info', 'Starting SRM validation...');
+
+    try {
+      const response = await fetch('http://localhost:8080/api/srm/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      addLog('info', `Validation response status: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        let errorData: any = { error: 'Unknown error' };
+        try {
+          const text = await response.text();
+          errorData = text ? JSON.parse(text) : { error: response.statusText };
+        } catch {
+          errorData = { error: response.statusText, status: response.status };
+        }
+        const errorMsg = `HTTP ${response.status}: ${errorData.error || response.statusText}`;
+        addLog('error', 'Validation failed', errorData);
+        setValidationError(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      addLog('success', 'Validation completed', data);
+      setValidationResults(data);
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to validate SRM files';
+      addLog('error', 'Error validating SRM files', { message: err.message, stack: err.stack });
+      setValidationError(errorMsg);
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const loadRoutes = async () => {
@@ -148,6 +197,100 @@ export const SrmDownloadManager: React.FC = () => {
       setRouteContent(null);
     } finally {
       setIsLoadingContent(false);
+    }
+  };
+
+  const loadExistingFiles = async () => {
+    setIsProcessing(true);
+    setLogs([]);
+    setError(null);
+    setErrorDetails(null);
+    addLog('info', 'Loading existing SRM files...');
+
+    let downloadData: any = null;
+    let copyData: any = null;
+
+    try {
+      // Step 1: Load existing files
+      updateStatus(0, 'running', 'Checking for existing SRM files...');
+      addLog('info', 'Calling POST /api/srm/load-existing');
+      
+      try {
+        const loadResponse = await fetch('http://localhost:8080/api/srm/load-existing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        addLog('info', `Load existing response status: ${loadResponse.status} ${loadResponse.statusText}`);
+        
+        if (!loadResponse.ok) {
+          let errorData: any = { error: 'Unknown error' };
+          try {
+            const text = await loadResponse.text();
+            errorData = text ? JSON.parse(text) : { error: loadResponse.statusText };
+          } catch {
+            errorData = { error: loadResponse.statusText, status: loadResponse.status };
+          }
+          const errorMsg = `HTTP ${loadResponse.status}: ${errorData.error || loadResponse.statusText}`;
+          addLog('error', 'Failed to load existing files', errorData);
+          const fullError = JSON.stringify(errorData, null, 2);
+          updateStatus(0, 'error', errorMsg, null, fullError);
+          throw new Error(errorMsg);
+        }
+        
+        const loadData = await loadResponse.json();
+        downloadData = loadData.download || {};
+        copyData = loadData.copy || {};
+        
+        addLog('success', 'Existing files loaded', loadData);
+        updateStatus(0, 'success', `Found ${copyData.csvFileCount || copyData.fileCount || 0} existing route files`, loadData);
+      } catch (err: any) {
+        const errorMsg = err.message || 'Failed to load existing files';
+        addLog('error', 'Error loading existing files', { message: err.message, stack: err.stack });
+        updateStatus(0, 'error', errorMsg, null, err.toString());
+        throw err;
+      }
+
+      // Step 2: Verify files
+      updateStatus(1, 'running', 'Verifying files...');
+      if (copyData && copyData.success) {
+        addLog('success', `Files verified in local directory`, copyData);
+        updateStatus(1, 'success', `Found ${copyData.csvFileCount || copyData.fileCount || 0} CSV files in ${copyData.localPath}`, copyData);
+      } else {
+        updateStatus(1, 'success', 'Files verified', copyData);
+      }
+
+      // Step 3: Mark copy step as complete
+      updateStatus(2, 'success', 'Process complete', copyData);
+
+      setResult({
+        version: 'existing',
+        download: downloadData,
+        copy: copyData,
+      });
+
+      addLog('success', 'Existing files loaded successfully!');
+      
+      // Load routes after successful load
+      addLog('info', 'Loading route list...');
+      await loadRoutes();
+
+    } catch (err: any) {
+      const errorMessage = err.message || 'An unknown error occurred';
+      const fullError = err.toString() + (err.stack ? '\n\nStack:\n' + err.stack : '');
+      
+      setError(errorMessage);
+      setErrorDetails(fullError);
+      addLog('error', 'Process failed', { message: errorMessage, fullError });
+      
+      // Mark current step as error
+      const currentStepIndex = processStatus.findIndex(s => s.status === 'running');
+      if (currentStepIndex >= 0) {
+        updateStatus(currentStepIndex, 'error', errorMessage, null, fullError);
+      }
+    } finally {
+      setIsProcessing(false);
+      addLog('info', 'Process finished');
     }
   };
 
@@ -211,39 +354,40 @@ export const SrmDownloadManager: React.FC = () => {
 
       // Step 2: Download SRM Files
       updateStatus(1, 'running', 'Downloading SRM files from WMSSQL-IS...');
-      const downloadUrl = 'http://localhost:8080/api/srm/download';
-      addLog('info', `Calling POST ${downloadUrl} with version: ${version}`);
+      addLog('info', 'Calling POST /api/srm/execute-full-process');
       
       try {
-        const downloadResponse = await fetch(downloadUrl, {
+        const fullProcessResponse = await fetch('http://localhost:8080/api/srm/execute-full-process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ version }),
         });
         
-        addLog('info', `Download response status: ${downloadResponse.status} ${downloadResponse.statusText}`);
+        addLog('info', `Full process response status: ${fullProcessResponse.status} ${fullProcessResponse.statusText}`);
         
-        if (!downloadResponse.ok) {
+        if (!fullProcessResponse.ok) {
           let errorData: any = { error: 'Unknown error' };
           try {
-            const text = await downloadResponse.text();
-            errorData = text ? JSON.parse(text) : { error: downloadResponse.statusText };
+            const text = await fullProcessResponse.text();
+            errorData = text ? JSON.parse(text) : { error: fullProcessResponse.statusText };
           } catch {
-            errorData = { error: downloadResponse.statusText, status: downloadResponse.status };
+            errorData = { error: fullProcessResponse.statusText, status: fullProcessResponse.status };
           }
-          const errorMsg = `HTTP ${downloadResponse.status}: ${errorData.error || downloadResponse.statusText}`;
-          addLog('error', `Failed to download SRM files from ${downloadUrl}`, { 
-            url: downloadUrl,
-            status: downloadResponse.status, 
-            statusText: downloadResponse.statusText,
+          const errorMsg = `HTTP ${fullProcessResponse.status}: ${errorData.error || fullProcessResponse.statusText}`;
+          addLog('error', `Failed to execute SRM process`, { 
+            status: fullProcessResponse.status, 
+            statusText: fullProcessResponse.statusText,
             error: errorData 
           });
-          const fullError = `URL: ${downloadUrl}\nStatus: ${downloadResponse.status} ${downloadResponse.statusText}\n\n${JSON.stringify(errorData, null, 2)}`;
+          const fullError = `Status: ${fullProcessResponse.status} ${fullProcessResponse.statusText}\n\n${JSON.stringify(errorData, null, 2)}`;
           updateStatus(1, 'error', errorMsg, null, fullError);
           throw new Error(errorMsg);
         }
         
-        downloadData = await downloadResponse.json();
+        const fullProcessData = await fullProcessResponse.json();
+        downloadData = fullProcessData.download || {};
+        copyData = fullProcessData.copy || {};
+        
         addLog('success', `Download completed`, downloadData);
         updateStatus(1, 'success', `Downloaded ${downloadData.routeCount || downloadData.csvFileCount || 0} route files`, downloadData);
       } catch (err: any) {
@@ -253,45 +397,52 @@ export const SrmDownloadManager: React.FC = () => {
         throw err;
       }
 
-      // Step 3: Copy to Local (now just verification since script handles it)
+      // Step 3: Verify files in local directory
       updateStatus(2, 'running', 'Verifying files in local directory...');
-      addLog('info', 'Calling POST /api/srm/copy-to-local');
       
-      try {
-        const copyResponse = await fetch('http://localhost:8080/api/srm/copy-to-local', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        addLog('info', `Copy response status: ${copyResponse.status} ${copyResponse.statusText}`);
-        
-        if (!copyResponse.ok) {
-          let errorData: any = { error: 'Unknown error' };
-          try {
-            const text = await copyResponse.text();
-            errorData = text ? JSON.parse(text) : { error: copyResponse.statusText };
-          } catch {
-            errorData = { error: copyResponse.statusText, status: copyResponse.status };
-          }
-          const errorMsg = `HTTP ${copyResponse.status}: ${errorData.error || copyResponse.statusText}`;
-          addLog('error', 'Failed to verify files', { 
-            status: copyResponse.status, 
-            statusText: copyResponse.statusText,
-            error: errorData 
-          });
-          const fullError = JSON.stringify(errorData, null, 2);
-          updateStatus(2, 'error', errorMsg, null, fullError);
-          throw new Error(errorMsg);
-        }
-        
-        copyData = await copyResponse.json();
+      if (copyData && copyData.success) {
         addLog('success', `Files verified in local directory`, copyData);
         updateStatus(2, 'success', `Found ${copyData.csvFileCount || copyData.fileCount || 0} CSV files in ${copyData.localPath}`, copyData);
-      } catch (err: any) {
-        const errorMsg = err.message || 'Failed to verify files';
-        addLog('error', 'Error verifying files', { message: err.message, stack: err.stack });
-        updateStatus(2, 'error', errorMsg, null, err.toString());
-        throw err;
+      } else {
+        // Fallback: call copy endpoint if not already available
+        addLog('info', 'Calling POST /api/srm/copy-to-local');
+        
+        try {
+          const copyResponse = await fetch('http://localhost:8080/api/srm/copy-to-local', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          addLog('info', `Copy response status: ${copyResponse.status} ${copyResponse.statusText}`);
+          
+          if (!copyResponse.ok) {
+            let errorData: any = { error: 'Unknown error' };
+            try {
+              const text = await copyResponse.text();
+              errorData = text ? JSON.parse(text) : { error: copyResponse.statusText };
+            } catch {
+              errorData = { error: copyResponse.statusText, status: copyResponse.status };
+            }
+            const errorMsg = `HTTP ${copyResponse.status}: ${errorData.error || copyResponse.statusText}`;
+            addLog('error', 'Failed to verify files', { 
+              status: copyResponse.status, 
+              statusText: copyResponse.statusText,
+              error: errorData 
+            });
+            const fullError = JSON.stringify(errorData, null, 2);
+            updateStatus(2, 'error', errorMsg, null, fullError);
+            throw new Error(errorMsg);
+          }
+          
+          copyData = await copyResponse.json();
+          addLog('success', `Files verified in local directory`, copyData);
+          updateStatus(2, 'success', `Found ${copyData.csvFileCount || copyData.fileCount || 0} CSV files in ${copyData.localPath}`, copyData);
+        } catch (err: any) {
+          const errorMsg = err.message || 'Failed to verify files';
+          addLog('error', 'Error verifying files', { message: err.message, stack: err.stack });
+          updateStatus(2, 'error', errorMsg, null, err.toString());
+          throw err;
+        }
       }
 
       setResult({
@@ -397,6 +548,175 @@ export const SrmDownloadManager: React.FC = () => {
   };
 
   const filteredContent = getFilteredContent();
+
+  // Filter validation results based on search and column filters
+  const getFilteredValidationResults = () => {
+    if (!validationResults || !validationResults.validationResults) {
+      return [];
+    }
+
+    let filtered = validationResults.validationResults;
+
+    // Apply column filters (only for Shipper, Route, and Service)
+    const hasColumnFilters = Object.values(validationFilters).some(filter => filter.trim() !== '');
+    if (hasColumnFilters) {
+      filtered = filtered.filter((summary: any) => {
+        const shipper = (summary.shipper || '').toLowerCase();
+        const route = (summary.route || summary.defaultRoute || '').toLowerCase();
+        const service = (summary.service || '').toLowerCase();
+
+        const shipperFilter = (validationFilters.shipper || '').toLowerCase().trim();
+        const routeFilter = (validationFilters.route || '').toLowerCase().trim();
+        const serviceFilter = (validationFilters.service || '').toLowerCase().trim();
+
+        return (!shipperFilter || shipper.includes(shipperFilter)) &&
+               (!routeFilter || route.includes(routeFilter)) &&
+               (!serviceFilter || service.includes(serviceFilter));
+      });
+    }
+
+    // Apply global search
+    if (validationSearch.trim() !== '') {
+      const searchLower = validationSearch.toLowerCase().trim();
+      filtered = filtered.filter((summary: any) => {
+        const shipper = (summary.shipper || '').toLowerCase();
+        const route = (summary.route || summary.defaultRoute || '').toLowerCase();
+        const service = (summary.service || '').toLowerCase();
+        const postalCodeCount = String(summary.postalCodeCount || '');
+        const transitDays = String(summary.transitDays || '');
+        const changeType = (summary.changeType || '').toLowerCase();
+
+        return shipper.includes(searchLower) ||
+               route.includes(searchLower) ||
+               service.includes(searchLower) ||
+               postalCodeCount.includes(searchLower) ||
+               transitDays.includes(searchLower) ||
+               changeType.includes(searchLower);
+      });
+    }
+
+    return filtered;
+  };
+
+  const filteredValidationResults = getFilteredValidationResults();
+
+  // Export validation results to CSV (includes both summary and details)
+  const exportValidationResultsToCsv = () => {
+    if (!filteredValidationResults || filteredValidationResults.length === 0) {
+      addLog('warning', 'No validation results to export');
+      return;
+    }
+
+    try {
+      // CSV escape function - handles quotes and commas
+      const escapeCsvField = (field: string): string => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Build CSV content
+      const csvRows: string[] = [];
+      
+      // Headers: Summary columns + Detail columns
+      const headers = [
+        'Shipper',
+        'Route',
+        'Service',
+        'Postal Code Count',
+        'Transit Days',
+        'Detail Postal Code',
+        'Detail Change Type',
+        'Detail Transit Days',
+        'Detail Default Route',
+        'Old Transit Days',
+        'Old Default Route'
+      ];
+      csvRows.push(headers.map(escapeCsvField).join(','));
+
+      // For each summary, add summary row and all detail rows
+      filteredValidationResults.forEach((summary: any) => {
+        // Get transit days display value
+        let transitDaysValue = '';
+        if (summary.transitDays !== undefined && summary.transitDays !== null) {
+          transitDaysValue = String(summary.transitDays);
+        } else if (summary.differences && summary.differences.length > 0) {
+          transitDaysValue = String(summary.differences[0].transitDays);
+        } else {
+          transitDaysValue = '-';
+        }
+
+        // Summary row (detail columns are empty)
+        const summaryRow = [
+          summary.shipper || '',
+          summary.route || summary.defaultRoute || '',
+          summary.service || '',
+          summary.postalCodeCount || 0,
+          transitDaysValue,
+          '', // Detail Postal Code
+          '', // Detail Change Type
+          '', // Detail Transit Days
+          '', // Detail Default Route
+          '', // Old Transit Days
+          ''  // Old Default Route
+        ];
+        csvRows.push(summaryRow.map(escapeCsvField).join(','));
+
+        // Detail rows (one for each difference)
+        if (summary.differences && summary.differences.length > 0) {
+          summary.differences.forEach((diff: any) => {
+            const oldTransitDays = diff.oldValue?.transitDays || '';
+            const oldDefaultRoute = diff.oldValue?.defaultRoute || '';
+            const detailRow = [
+              summary.shipper || '',
+              summary.route || summary.defaultRoute || '',
+              summary.service || '',
+              summary.postalCodeCount || 0,
+              transitDaysValue,
+              diff.postalCode || '',
+              diff.changeType || '',
+              diff.transitDays || '',
+              diff.defaultRoute || '',
+              oldTransitDays,
+              oldDefaultRoute
+            ];
+            csvRows.push(detailRow.map(escapeCsvField).join(','));
+          });
+        }
+      });
+
+      const csvContent = csvRows.join('\n');
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename with timestamp and filter info
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filterInfo = validationSearch || Object.values(validationFilters).some(f => f) ? '_filtered' : '';
+      const filename = `SRM_Validation_Results${filterInfo}_${timestamp}.csv`;
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const totalRows = filteredValidationResults.reduce((sum: number, s: any) => {
+        return sum + 1 + (s.differences?.length || 0); // 1 summary row + detail rows
+      }, 0);
+      addLog('success', `Exported ${totalRows.toLocaleString()} rows (${filteredValidationResults.length} summaries + details) to ${filename}`);
+    } catch (err: any) {
+      addLog('error', 'Error exporting validation results to CSV', { message: err.message });
+      console.error('Error exporting validation results to CSV:', err);
+    }
+  };
 
   // Export filtered content to CSV
   const exportToCsv = () => {
@@ -505,6 +825,13 @@ export const SrmDownloadManager: React.FC = () => {
               disabled={isProcessing}
             >
               {isProcessing ? 'Processing...' : 'Download & Copy SRM Files'}
+            </KibButtonNew>
+            <KibButtonNew 
+              size="large"
+              onClick={loadExistingFiles}
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Processing...' : 'Use Existing Files'}
             </KibButtonNew>
             {!isProcessing && (result || error) && (
               <KibButtonNew 
@@ -617,6 +944,248 @@ export const SrmDownloadManager: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* SRM Validation Section */}
+          <div className={styles.validationContainer}>
+            <div className={styles.validationHeader}>
+              <h3>SRM Validation</h3>
+              <KibButtonNew 
+                size="medium"
+                onClick={validateSrmFiles}
+                disabled={isValidating || routes.length === 0}
+              >
+                {isValidating ? 'Validating...' : 'Validate SRM Files'}
+              </KibButtonNew>
+            </div>
+
+            {validationError && (
+              <div className={styles.validationError}>
+                <strong>Error:</strong> {validationError}
+              </div>
+            )}
+
+            {validationResults && validationResults.success && (
+              <div className={styles.validationResults}>
+                <div className={styles.validationSummary}>
+                  <p>
+                    <strong>Total Routes Affected:</strong> {validationResults.summary?.totalRoutesAffected || 0} | 
+                    <strong> Total Postal Codes Changed:</strong> {validationResults.summary?.totalPostalCodesChanged || 0} | 
+                    <strong> Shippers Validated:</strong> {(validationResults.summary?.shippersValidated || []).join(', ')}
+                  </p>
+                </div>
+
+                {validationResults.validationResults && validationResults.validationResults.length > 0 ? (
+                  <>
+                    {/* Search and Filter Controls */}
+                    <div className={styles.contentControls}>
+                      <div className={styles.searchBox}>
+                        <label htmlFor="validationSearch">Search:</label>
+                        <input
+                          id="validationSearch"
+                          type="text"
+                          placeholder="Search across all columns..."
+                          value={validationSearch}
+                          onChange={(e) => setValidationSearch(e.target.value)}
+                          className={styles.searchInput}
+                        />
+                      </div>
+                      <KibButtonNew 
+                        size="small"
+                        onClick={() => {
+                          setValidationSearch('');
+                          setValidationFilters({});
+                        }}
+                      >
+                        Clear Filters
+                      </KibButtonNew>
+                      <KibButtonNew 
+                        size="small"
+                        onClick={exportValidationResultsToCsv}
+                        disabled={!filteredValidationResults || filteredValidationResults.length === 0}
+                      >
+                        Export to CSV
+                      </KibButtonNew>
+                    </div>
+
+                    <div className={styles.tableWrapper}>
+                      <table className={styles.validationTable}>
+                        <thead>
+                          <tr>
+                            <th>
+                              <div className={styles.columnHeader}>
+                                <span>Shipper</span>
+                                <input
+                                  type="text"
+                                  placeholder="Filter Shipper..."
+                                  value={validationFilters.shipper || ''}
+                                  onChange={(e) => setValidationFilters({
+                                    ...validationFilters,
+                                    shipper: e.target.value
+                                  })}
+                                  className={styles.columnFilter}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </th>
+                            <th>
+                              <div className={styles.columnHeader}>
+                                <span>Route</span>
+                                <input
+                                  type="text"
+                                  placeholder="Filter Route..."
+                                  value={validationFilters.route || ''}
+                                  onChange={(e) => setValidationFilters({
+                                    ...validationFilters,
+                                    route: e.target.value
+                                  })}
+                                  className={styles.columnFilter}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </th>
+                            <th>
+                              <div className={styles.columnHeader}>
+                                <span>Service</span>
+                                <input
+                                  type="text"
+                                  placeholder="Filter Service..."
+                                  value={validationFilters.service || ''}
+                                  onChange={(e) => setValidationFilters({
+                                    ...validationFilters,
+                                    service: e.target.value
+                                  })}
+                                  className={styles.columnFilter}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </th>
+                            <th>Postal Code Count</th>
+                            <th>Transit Days</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredValidationResults.length > 0 ? (
+                            filteredValidationResults.map((summary: any, index: number) => {
+                              const routeKey = `${summary.shipper}_${summary.route}_${summary.service}`;
+                              const isExpanded = expandedRoute === routeKey;
+                              return (
+                                <React.Fragment key={index}>
+                                  <tr className={isExpanded ? styles.selectedRow : ''}>
+                                    <td>{summary.shipper}</td>
+                                    <td>{summary.route || summary.defaultRoute}</td>
+                                    <td>{summary.service}</td>
+                                    <td>{summary.postalCodeCount.toLocaleString()}</td>
+                                    <td>
+                                      {summary.transitDays !== undefined && summary.transitDays !== null ? (
+                                        <span>
+                                          {summary.transitDays}
+                                          {summary.differences && summary.differences.length > 0 && 
+                                           summary.differences[0].changeType === 'UPDATED' && 
+                                           summary.differences[0].oldValue && (
+                                            <span className={styles.changedValue}>
+                                              {' '}(was {summary.differences[0].oldValue.transitDays})
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : (
+                                        summary.differences && summary.differences.length > 0 ? (
+                                          <span>
+                                            {summary.differences[0].transitDays}
+                                            {summary.differences[0].changeType === 'UPDATED' && summary.differences[0].oldValue && (
+                                              <span className={styles.changedValue}>
+                                                {' '}(was {summary.differences[0].oldValue.transitDays})
+                                              </span>
+                                            )}
+                                          </span>
+                                        ) : '-'
+                                      )}
+                                    </td>
+                                    <td>
+                                      <KibButtonNew 
+                                        size="small"
+                                        onClick={() => setExpandedRoute(isExpanded ? null : routeKey)}
+                                      >
+                                        {isExpanded ? 'Hide' : 'Show'} Details
+                                      </KibButtonNew>
+                                    </td>
+                                  </tr>
+                                  {isExpanded && summary.differences && (
+                                    <tr>
+                                      <td colSpan={6} className={styles.detailsCell}>
+                                        <div className={styles.detailsContent}>
+                                          <h4>Postal Code Changes ({summary.differences.length})</h4>
+                                          <div className={styles.detailsTableWrapper}>
+                                            <table className={styles.detailsTable}>
+                                              <thead>
+                                                <tr>
+                                                  <th>Postal Code</th>
+                                                  <th>Change Type</th>
+                                                  <th>Transit Days</th>
+                                                  <th>Default Route</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {summary.differences.map((diff: any, diffIndex: number) => (
+                                                  <tr key={diffIndex}>
+                                                    <td>{diff.postalCode}</td>
+                                                    <td>
+                                                      <span className={styles[`changeType${diff.changeType}`]}>
+                                                        {diff.changeType}
+                                                      </span>
+                                                    </td>
+                                                    <td>
+                                                      {diff.transitDays}
+                                                      {diff.changeType === 'UPDATED' && diff.oldValue && (
+                                                        <span className={styles.changedValue}>
+                                                          {' '}(was {diff.oldValue.transitDays})
+                                                        </span>
+                                                      )}
+                                                    </td>
+                                                    <td>
+                                                      {diff.defaultRoute}
+                                                      {diff.changeType === 'UPDATED' && diff.oldValue && diff.oldValue.defaultRoute !== diff.defaultRoute && (
+                                                        <span className={styles.changedValue}>
+                                                          {' '}(was {diff.oldValue.defaultRoute})
+                                                        </span>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className={styles.tableNote}>
+                                No results match the current filters
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                      {filteredValidationResults.length > 0 && (
+                        <div className={styles.tableNote}>
+                          Showing {filteredValidationResults.length} of {validationResults.validationResults.length} results
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.noValidationResults}>
+                    <p>No differences found between SRM files and production data.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Route Content Viewer */}
           {routeContent && (
