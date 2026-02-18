@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '@/styles/clsManagement/databaseManager.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 
-export const DatabaseManager: React.FC = () => {
+interface DatabaseManagerProps {
+  onDataChange?: (data: any) => void;
+}
+
+export const DatabaseManager: React.FC<DatabaseManagerProps> = ({ onDataChange }) => {
   const [selectedDatabase, setSelectedDatabase] = useState<'production' | 'staging'>('production');
   const [isConnected, setIsConnected] = useState(false);
 
@@ -16,6 +20,16 @@ export const DatabaseManager: React.FC = () => {
   const handleDisconnect = () => {
     setIsConnected(false);
   };
+
+  // Notify parent of data changes
+  useEffect(() => {
+    if (onDataChange) {
+      onDataChange({
+        selectedDatabase,
+        isConnected,
+      });
+    }
+  }, [selectedDatabase, isConnected, onDataChange]);
 
   return (
     <div className={styles.databaseManager}>

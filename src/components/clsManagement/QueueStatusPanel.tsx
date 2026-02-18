@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import styles from '@/styles/clsManagement/queueStatusPanel.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
@@ -43,7 +43,11 @@ const QUEUE_LABELS: Record<string, string> = {
 
 type LogModalTab = 'summary' | 'xmlRequest' | 'xmlResponse';
 
-export const QueueStatusPanel: React.FC = () => {
+interface QueueStatusPanelProps {
+  onDataChange?: (data: any) => void;
+}
+
+export const QueueStatusPanel: React.FC<QueueStatusPanelProps> = ({ onDataChange }) => {
   const [data, setData] = useState<QueueStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +137,31 @@ export const QueueStatusPanel: React.FC = () => {
       return xml;
     }
   };
+
+  // Notify parent of data changes
+  useEffect(() => {
+    if (onDataChange) {
+      onDataChange({
+        totalStuck: data?.totalStuck || 0,
+        queryTimeMs: data?.queryTimeMs,
+        counts: data?.counts || {},
+        queuesCount: Object.keys(data?.queues || {}).length,
+        sampleQueues: data ? Object.entries(data.queues).slice(0, 3).map(([key, items]) => ({
+          queueName: QUEUE_LABELS[key] || key,
+          queueType: key,
+          count: items.length,
+          sampleItems: items.slice(0, 5).map(i => ({
+            orderNumber: i.orderNumber,
+            whId: i.whId,
+            route: i.route,
+            errorText: i.errorText ? i.errorText.substring(0, 100) : null,
+          })),
+        })) : [],
+        error,
+        isLoading,
+      });
+    }
+  }, [data, error, isLoading, onDataChange]);
 
   return (
     <div className={styles.panel}>

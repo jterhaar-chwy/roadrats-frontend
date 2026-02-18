@@ -4,6 +4,7 @@ import { ErrorsTable } from './ErrorsTable';
 import { ErrorDetailPanel } from './ErrorDetailPanel';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
+import { Chatbot } from '@/components/chatbot/Chatbot';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -126,6 +127,43 @@ export const DatabaseErrorsDashboard: React.FC = () => {
 
     return filtered;
   }, [errors, filterText, serverFilter]);
+
+  // Extract page data for chatbot (must be after filteredErrors, uniqueMachines, uniqueResources)
+  // Limited to prevent token limit issues
+  const getPageData = useCallback(() => {
+    return {
+      days,
+      totalErrors: errors.length,
+      filteredErrorsCount: filteredErrors.length,
+      servers: queryMeta?.servers || [],
+      uniqueMachinesCount: uniqueMachines.length,
+      uniqueResourcesCount: uniqueResources.length,
+      // Limit to first 30 errors with truncated fields
+      errors: filteredErrors.slice(0, 30).map(e => ({
+        serverName: e.serverName,
+        machineId: e.machineId,
+        resourceName: e.resourceName,
+        userId: e.userId,
+        loggedOnLocal: e.loggedOnLocal,
+        // Exclude details, callStack, arguments to reduce size
+      })),
+      queryMeta: queryMeta ? {
+        totalErrors: queryMeta.totalErrors,
+        servers: queryMeta.servers,
+        queriedAt: queryMeta.queriedAt,
+      } : null,
+      filters: {
+        filterText,
+        serverFilter,
+      },
+      selectedError: selectedError ? {
+        serverName: selectedError.serverName,
+        machineId: selectedError.machineId,
+        resourceName: selectedError.resourceName,
+      } : null,
+    };
+  }, [days, errors.length, filteredErrors, queryMeta, uniqueMachines, uniqueResources, 
+      filterText, serverFilter, selectedError]);
 
   return (
     <div className={styles.dashboard}>
@@ -265,6 +303,7 @@ export const DatabaseErrorsDashboard: React.FC = () => {
       <div className={styles.detailContainer}>
         <ErrorDetailPanel error={selectedError} />
       </div>
+      <Chatbot pageType="database-errors" getPageData={getPageData} />
     </div>
   );
 };

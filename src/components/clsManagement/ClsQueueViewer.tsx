@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styles from '@/styles/clsManagement/clsQueueViewer.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
@@ -64,7 +64,11 @@ const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text).catch(() => {});
 };
 
-export const ClsQueueViewer: React.FC = () => {
+interface ClsQueueViewerProps {
+  onDataChange?: (data: any) => void;
+}
+
+export const ClsQueueViewer: React.FC<ClsQueueViewerProps> = ({ onDataChange }) => {
   const [results, setResults] = useState<EnrichedOrderResult[]>([]);
   const [summary, setSummary] = useState<ErrorSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,6 +136,35 @@ export const ClsQueueViewer: React.FC = () => {
     () => Array.from(new Set(results.map((r) => r.importStatus).filter(Boolean))) as string[],
     [results]
   );
+
+  // Notify parent of data changes
+  useEffect(() => {
+    if (onDataChange) {
+      onDataChange({
+        activeQuery,
+        resultsCount: results.length,
+        filteredResultsCount: filteredResults.length,
+        summary: summary ? {
+          totalOrders: summary.totalOrders,
+          ordersWithErrors: summary.ordersWithErrors,
+          warehouses: summary.warehouses,
+          errorsCount: summary.errors?.length || 0,
+          errors: summary.errors?.slice(0, 10).map(e => ({
+            errorText: e.errorText,
+            totalCount: e.totalCount,
+          })),
+        } : null,
+        error,
+        isLoading,
+        sampleResults: results.slice(0, 10).map(r => ({
+          orderNumber: r.orderNumber,
+          whId: r.whId,
+          importStatus: r.importStatus,
+          errorText: r.errorText ? r.errorText.substring(0, 100) : null,
+        })),
+      });
+    }
+  }, [results, summary, error, isLoading, activeQuery, filteredResults.length, onDataChange]);
 
   return (
     <div className={styles.queueViewer}>

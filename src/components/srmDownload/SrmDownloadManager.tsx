@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
+import { Chatbot } from '@/components/chatbot/Chatbot';
 import styles from '@/styles/srmDownload/srmDownload.module.scss';
 
 interface ProcessStatus {
@@ -63,6 +64,74 @@ export const SrmDownloadManager: React.FC = () => {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [validationSearch, setValidationSearch] = useState('');
   const [validationFilters, setValidationFilters] = useState<Record<string, string>>({});
+
+  // Extract page data for chatbot (with size limits to prevent token issues)
+  const getPageData = useCallback(() => {
+    // Limit routes to first 20
+    const limitedRoutes = routes.slice(0, 20).map(r => ({
+      routeName: r.routeName,
+      fileName: r.fileName,
+      fileSize: r.fileSize,
+      lastModified: r.lastModified,
+      rowCount: r.rowCount,
+    }));
+
+    // Limit validation results size
+    let limitedValidationResults = null;
+    if (validationResults) {
+      limitedValidationResults = {
+        ...validationResults,
+        // If validationResults has arrays, limit them
+        errors: validationResults.errors ? validationResults.errors.slice(0, 50) : undefined,
+        warnings: validationResults.warnings ? validationResults.warnings.slice(0, 50) : undefined,
+      };
+    }
+
+    // Limit logs to last 10 (most recent)
+    const limitedLogs = logs.slice(-10).map(log => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+      // Exclude details to reduce size
+    }));
+
+    return {
+      processStatus: processStatus.map(status => ({
+        step: status.step,
+        status: status.status,
+        message: status.message ? status.message.substring(0, 200) : undefined, // Limit message length
+      })),
+      result: result ? {
+        success: result.success,
+        message: result.message ? String(result.message).substring(0, 200) : undefined,
+        // Exclude large data fields
+      } : null,
+      error: error ? error.substring(0, 200) : null,
+      errorDetails: errorDetails ? String(errorDetails).substring(0, 500) : null,
+      routes: limitedRoutes,
+      routesCount: routes.length, // Include total count
+      selectedRoute,
+      routeContent: routeContent ? {
+        routeName: routeContent.routeName,
+        rowCount: routeContent.rowCount,
+        columnCount: routeContent.columnCount,
+        headers: routeContent.headers,
+        sampleRows: routeContent.rows.slice(0, 5), // Limit to first 5 rows only
+      } : null,
+      validationResults: limitedValidationResults,
+      validationError: validationError ? validationError.substring(0, 200) : null,
+      logs: limitedLogs,
+      logsCount: logs.length, // Include total count
+      filters: {
+        contentSearch,
+        columnFilters,
+        validationSearch,
+        validationFilters,
+      },
+    };
+  }, [processStatus, result, error, errorDetails, routes, selectedRoute, routeContent, 
+      validationResults, validationError, logs, contentSearch, columnFilters, 
+      validationSearch, validationFilters]);
 
   const addLog = (level: LogEntry['level'], message: string, details?: any) => {
     const logEntry: LogEntry = {
@@ -1341,6 +1410,7 @@ export const SrmDownloadManager: React.FC = () => {
           </div>
         </div>
       </KibSectionHeading>
+      <Chatbot pageType="srm-download" getPageData={getPageData} />
     </div>
   );
 };

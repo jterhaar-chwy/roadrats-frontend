@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import styles from '@/styles/clsManagement/saturdayDeliveryPanel.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
@@ -15,7 +15,11 @@ interface SaturdayDeliveryResponse {
   error?: string;
 }
 
-export const SaturdayDeliveryPanel: React.FC = () => {
+interface SaturdayDeliveryPanelProps {
+  onDataChange?: (data: any) => void;
+}
+
+export const SaturdayDeliveryPanel: React.FC<SaturdayDeliveryPanelProps> = ({ onDataChange }) => {
   const [data, setData] = useState<SaturdayDeliveryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +49,27 @@ export const SaturdayDeliveryPanel: React.FC = () => {
 
   const grouped = data?.groupedByService ?? {};
   const serviceKeys = Object.keys(grouped).sort();
+
+  // Notify parent of data changes
+  useEffect(() => {
+    if (onDataChange) {
+      onDataChange({
+        totalRateOrders: data?.totalRateOrders || 0,
+        originsChecked: data?.originsChecked || 0,
+        totalSaturdayFlags: data?.totalSaturdayFlags || 0,
+        queryTimeMs: data?.queryTimeMs,
+        servicesCount: serviceKeys.length,
+        sampleServices: serviceKeys.slice(0, 5).map(svc => ({
+          serviceName: svc,
+          zipCount: grouped[svc]?.length || 0,
+          sampleZips: grouped[svc]?.slice(0, 10) || [],
+        })),
+        error,
+        isLoading,
+        message: data?.message,
+      });
+    }
+  }, [data, error, isLoading, serviceKeys, grouped, onDataChange]);
 
   return (
     <div className={styles.panel}>
