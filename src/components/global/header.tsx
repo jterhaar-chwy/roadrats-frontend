@@ -54,6 +54,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, sidebarOpen }) 
               Database Errors
             </KibButtonNew>
           </Link>
+          <Link href="/release-manager">
+            <KibButtonNew size="small">
+              Release Manager
+            </KibButtonNew>
+          </Link>
         </nav>
 
         {/* Right side - User actions */}
