@@ -618,6 +618,42 @@ export const SrmDownloadManager: React.FC = () => {
 
   const filteredContent = getFilteredContent();
 
+  // Build a human-readable change summary for a validation row
+  const buildChangeSummary = (summary: any): string => {
+    if (!summary.differences || summary.differences.length === 0) {
+      return '-';
+    }
+
+    const diffs: any[] = summary.differences;
+    let newZips = 0;
+    let removedZips = 0;
+    let routeChanges = 0;
+    let tntChanges = 0;
+
+    for (const diff of diffs) {
+      if (diff.changeType === 'NEW') {
+        newZips++;
+      } else if (diff.changeType === 'DELETED') {
+        removedZips++;
+      } else if (diff.changeType === 'UPDATED') {
+        const routeChanged = diff.oldValue && diff.oldValue.defaultRoute !== diff.defaultRoute;
+        const tntChanged = diff.oldValue && Math.abs((diff.oldValue.transitDays || 0) - (diff.transitDays || 0)) > 0.01;
+        if (routeChanged) routeChanges++;
+        if (tntChanged) tntChanges++;
+        // If neither flag triggered (shouldn't happen), count as route change
+        if (!routeChanged && !tntChanged) routeChanges++;
+      }
+    }
+
+    const parts: string[] = [];
+    if (newZips > 0) parts.push(`${newZips} New Zip${newZips !== 1 ? 's' : ''}`);
+    if (removedZips > 0) parts.push(`${removedZips} Removed Zip${removedZips !== 1 ? 's' : ''}`);
+    if (routeChanges > 0) parts.push(`${routeChanges} Route Change${routeChanges !== 1 ? 's' : ''}`);
+    if (tntChanges > 0) parts.push(`${tntChanges} TNT Change${tntChanges !== 1 ? 's' : ''}`);
+
+    return parts.length > 0 ? parts.join(', ') : '-';
+  };
+
   // Filter validation results based on search and column filters
   const getFilteredValidationResults = () => {
     if (!validationResults || !validationResults.validationResults) {
@@ -654,13 +690,15 @@ export const SrmDownloadManager: React.FC = () => {
         const postalCodeCount = String(summary.postalCodeCount || '');
         const transitDays = String(summary.transitDays || '');
         const changeType = (summary.changeType || '').toLowerCase();
+        const changeSummary = buildChangeSummary(summary).toLowerCase();
 
         return shipper.includes(searchLower) ||
                route.includes(searchLower) ||
                service.includes(searchLower) ||
                postalCodeCount.includes(searchLower) ||
                transitDays.includes(searchLower) ||
-               changeType.includes(searchLower);
+               changeType.includes(searchLower) ||
+               changeSummary.includes(searchLower);
       });
     }
 
@@ -698,6 +736,7 @@ export const SrmDownloadManager: React.FC = () => {
         'Service',
         'Postal Code Count',
         'Transit Days',
+        'Summary',
         'Detail Postal Code',
         'Detail Change Type',
         'Detail Transit Days',
@@ -726,6 +765,7 @@ export const SrmDownloadManager: React.FC = () => {
           summary.service || '',
           summary.postalCodeCount || 0,
           transitDaysValue,
+          buildChangeSummary(summary),
           '', // Detail Postal Code
           '', // Detail Change Type
           '', // Detail Transit Days
@@ -746,6 +786,7 @@ export const SrmDownloadManager: React.FC = () => {
               summary.service || '',
               summary.postalCodeCount || 0,
               transitDaysValue,
+              '', // Summary (only on summary row)
               diff.postalCode || '',
               diff.changeType || '',
               diff.transitDays || '',
@@ -1130,6 +1171,7 @@ export const SrmDownloadManager: React.FC = () => {
                             </th>
                             <th>Postal Code Count</th>
                             <th>Transit Days</th>
+                            <th>Summary</th>
                             <th>Action</th>
                           </tr>
                         </thead>
@@ -1170,6 +1212,7 @@ export const SrmDownloadManager: React.FC = () => {
                                         ) : '-'
                                       )}
                                     </td>
+                                    <td className={styles.summaryCell}>{buildChangeSummary(summary)}</td>
                                     <td>
                                       <KibButtonNew 
                                         size="small"
@@ -1181,7 +1224,7 @@ export const SrmDownloadManager: React.FC = () => {
                                   </tr>
                                   {isExpanded && summary.differences && (
                                     <tr>
-                                      <td colSpan={6} className={styles.detailsCell}>
+                                      <td colSpan={7} className={styles.detailsCell}>
                                         <div className={styles.detailsContent}>
                                           <h4>Postal Code Changes ({summary.differences.length})</h4>
                                           <div className={styles.detailsTableWrapper}>
@@ -1233,7 +1276,7 @@ export const SrmDownloadManager: React.FC = () => {
                             })
                           ) : (
                             <tr>
-                              <td colSpan={6} className={styles.tableNote}>
+                              <td colSpan={7} className={styles.tableNote}>
                                 No results match the current filters
                               </td>
                             </tr>
