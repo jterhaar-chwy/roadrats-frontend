@@ -5,6 +5,7 @@ import { RiskFlagsPanel } from './RiskFlagsPanel';
 import { TicketTable } from './TicketTable';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
+import { Chatbot } from '@/components/chatbot/Chatbot';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -239,6 +240,61 @@ export const ReleaseManagerDashboard: React.FC = () => {
       low: plan.riskFlags.filter(r => r.severity === 'low').length,
     };
   }, [plan]);
+
+  // Extract page data for chatbot (limited to prevent token issues)
+  const getPageData = useCallback(() => {
+    if (!plan) {
+      return {
+        queryMode,
+        chgInput,
+        releaseDate,
+        selectedPreset,
+        hasPlan: false,
+      };
+    }
+    return {
+      queryMode,
+      chgInput,
+      releaseDate,
+      selectedPreset,
+      hasPlan: true,
+      plan: {
+        chgNumber: plan.chgNumber,
+        totalTickets: plan.totalTickets,
+        downtimeRequired: plan.downtimeRequired,
+        plannedDeploymentDate: plan.plannedDeploymentDate,
+        teamBreakdown: plan.teamBreakdown,
+        statusBreakdown: plan.statusBreakdown,
+        // Limit risk flags to first 20
+        riskFlags: plan.riskFlags.slice(0, 20).map(r => ({
+          severity: r.severity,
+          category: r.category,
+          message: r.message ? r.message.substring(0, 150) : r.message, // Truncate long messages
+          relatedJira: r.relatedJira,
+        })),
+        riskFlagsCount: plan.riskFlags.length, // Include total count
+        componentCounts: {
+          architect: plan.architectComponents.length,
+          ddl: plan.ddlComponents.length,
+          dml: plan.dmlComponents.length,
+          web: plan.webComponents.length,
+          gateway: plan.gatewayComponents.length,
+          fitnesse: plan.fitnesseComponents.length,
+          nonStandard: plan.nonStandardComponents.length,
+        },
+        // Limit tickets to first 15 with minimal fields
+        tickets: plan.allTickets.slice(0, 15).map(t => ({
+          jira: t.jira,
+          title: t.title ? t.title.substring(0, 100) : t.title, // Truncate long titles
+          status: t.status,
+          assignee: t.assignee,
+          devTeam: t.devTeam,
+          downtimeRequired: t.downtimeRequired,
+        })),
+        ticketsCount: plan.allTickets.length, // Include total count
+      },
+    };
+  }, [queryMode, chgInput, releaseDate, selectedPreset, plan]);
 
   // ---- Render ----
 
@@ -567,6 +623,7 @@ export const ReleaseManagerDashboard: React.FC = () => {
           <p className={styles.emptyStateSubtext}>Fetching from Jira API...</p>
         </div>
       )}
+      <Chatbot pageType="release-manager" getPageData={getPageData} />
     </div>
   );
 };
