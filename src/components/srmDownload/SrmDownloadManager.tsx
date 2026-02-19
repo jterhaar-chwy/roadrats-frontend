@@ -64,6 +64,9 @@ export const SrmDownloadManager: React.FC = () => {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [validationSearch, setValidationSearch] = useState('');
   const [validationFilters, setValidationFilters] = useState<Record<string, string>>({});
+  const [scheduledVersion, setScheduledVersion] = useState<any>(null);
+  const [isLoadingScheduledVersion, setIsLoadingScheduledVersion] = useState(false);
+  const [scheduledVersionError, setScheduledVersionError] = useState<string | null>(null);
 
   // Extract page data for chatbot (with size limits to prevent token issues)
   const getPageData = useCallback(() => {
@@ -268,6 +271,32 @@ export const SrmDownloadManager: React.FC = () => {
       setIsLoadingContent(false);
     }
   };
+
+  const fetchScheduledVersion = async () => {
+    setIsLoadingScheduledVersion(true);
+    setScheduledVersionError(null);
+    try {
+      const response = await fetch('http://localhost:8080/api/srm/scheduled-version');
+      const data = await response.json();
+      if (data.success) {
+        setScheduledVersion(data);
+        addLog('success', `Retrieved ${data.versions?.length || 0} versions from SRM (scheduled: ${data.scheduledVersion})`);
+      } else {
+        setScheduledVersionError(data.error || 'Failed to fetch scheduled version');
+        addLog('error', 'Failed to fetch scheduled version', { error: data.error });
+      }
+    } catch (err: any) {
+      setScheduledVersionError(err.message || 'Network error');
+      addLog('error', 'Error fetching scheduled version', { message: err.message });
+    } finally {
+      setIsLoadingScheduledVersion(false);
+    }
+  };
+
+  // Auto-fetch scheduled version on component mount
+  useEffect(() => {
+    fetchScheduledVersion();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadExistingFiles = async () => {
     setIsProcessing(true);
@@ -895,6 +924,92 @@ export const SrmDownloadManager: React.FC = () => {
         subheading="Download SRM files and copy to localhost"
       >
         <div className={styles.content}>
+          {/* SRM Route Calendar Versions */}
+          <div className={styles.scheduledVersionPanel}>
+            <div className={styles.scheduledVersionHeader}>
+              <h3>SRM Route Calendar Versions</h3>
+              <KibButtonNew
+                size="small"
+                onClick={fetchScheduledVersion}
+                disabled={isLoadingScheduledVersion}
+              >
+                {isLoadingScheduledVersion ? 'Refreshing...' : 'Refresh'}
+              </KibButtonNew>
+            </div>
+            {scheduledVersionError && (
+              <div className={styles.scheduledVersionError}>
+                {scheduledVersionError}
+              </div>
+            )}
+            {isLoadingScheduledVersion && !scheduledVersion && (
+              <div className={styles.scheduledVersionLoading}>Loading versions from SRM API...</div>
+            )}
+            {scheduledVersion && scheduledVersion.success && scheduledVersion.versions && (
+              <div className={styles.versionTableWrapper}>
+                <table className={styles.versionTable}>
+                  <thead>
+                    <tr>
+                      <th>Version ID</th>
+                      <th>Status</th>
+                      <th>Upload Time</th>
+                      <th>Upload User</th>
+                      <th>Scheduled Time</th>
+                      <th>Locked</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduledVersion.versions.map((v: any) => {
+                      const uploadDate = v.uploadTime && v.uploadTime > 0
+                        ? new Date(v.uploadTime).toLocaleString()
+                        : '-';
+                      const scheduledDate = v.scheduledTime && v.scheduledTime > 0
+                        ? new Date(v.scheduledTime).toLocaleString()
+                        : '-';
+                      const isScheduled = v.status === 'SCHEDULED';
+                      const isActive = v.status === 'ACTIVE';
+                      const isCurrent = !useLatestVersion && versionInput === String(v.id);
+
+                      return (
+                        <tr
+                          key={v.id}
+                          className={`${styles.versionRow} ${isScheduled ? styles.versionScheduled : ''} ${isActive ? styles.versionActive : ''} ${isCurrent ? styles.versionCurrent : ''}`}
+                        >
+                          <td className={styles.versionId}>{v.id}</td>
+                          <td>
+                            <span className={`${styles.versionStatusBadge} ${styles[`status${v.status}`] || ''}`}>
+                              {v.status}
+                            </span>
+                          </td>
+                          <td>{uploadDate}</td>
+                          <td>{v.uploadUser || '-'}</td>
+                          <td>{scheduledDate}</td>
+                          <td>{v.locked ? '🔒' : '-'}</td>
+                          <td>
+                            <button
+                              className={styles.useVersionBtn}
+                              onClick={() => {
+                                setUseLatestVersion(false);
+                                setVersionInput(String(v.id));
+                                addLog('info', `Version set to ${v.id} from SRM list`);
+                              }}
+                              disabled={isCurrent}
+                            >
+                              {isCurrent ? 'Selected' : 'Use'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className={styles.versionTableFooter}>
+                  Showing {scheduledVersion.versions.length} of {scheduledVersion.totalCount} versions
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Version Selection */}
           <div className={styles.versionSelection}>
             <h3>Version Selection</h3>
