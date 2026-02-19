@@ -11,7 +11,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const [ratsEnabled, setRatsEnabled] = useState(true);
+  const [ratsEnabled, setRatsEnabled] = useState(false);
   const [ratFrequency, setRatFrequency] = useState(3); // 1=rare, 5=swarm
 
   return (
