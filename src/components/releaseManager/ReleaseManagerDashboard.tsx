@@ -3,11 +3,14 @@ import styles from '@/styles/releaseManager/releaseManager.module.scss';
 import { ComponentGroupPanel } from './ComponentGroupPanel';
 import { RiskFlagsPanel } from './RiskFlagsPanel';
 import { TicketTable } from './TicketTable';
+import { DeploymentBrowser } from './DeploymentBrowser';
+import { ActionsPanel } from './ActionsPanel';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { Chatbot } from '@/components/chatbot/Chatbot';
+import { getApiBaseUrl } from '@/utils/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = getApiBaseUrl();
 
 // -- Types matching backend DTOs --
 
@@ -88,7 +91,7 @@ interface DeploymentDateInfo {
   releaseBranch: string;
 }
 
-type QueryMode = 'chg' | 'release' | 'preset' | 'custom';
+type QueryMode = 'chg' | 'release' | 'preset' | 'custom' | 'deployments' | 'actions';
 type ViewMode = 'plan' | 'table';
 
 export const ReleaseManagerDashboard: React.FC = () => {
@@ -303,6 +306,8 @@ export const ReleaseManagerDashboard: React.FC = () => {
     { key: 'release', label: 'Release Date', icon: '📅' },
     { key: 'preset', label: 'Presets', icon: '⚡' },
     { key: 'custom', label: 'Custom JQL', icon: '🔍' },
+    { key: 'deployments', label: 'Deployments', icon: '📁' },
+    { key: 'actions', label: 'Actions', icon: '🔄' },
   ];
 
   return (
@@ -350,6 +355,8 @@ export const ReleaseManagerDashboard: React.FC = () => {
           ))}
         </div>
 
+        {/* Deployments and Actions render their own content, skip query input */}
+        {queryMode !== 'deployments' && queryMode !== 'actions' && (<>
         <div className={styles.queryInputArea}>
           {/* CHG Mode */}
           {queryMode === 'chg' && (
@@ -456,8 +463,22 @@ export const ReleaseManagerDashboard: React.FC = () => {
             {loading ? 'Querying Jira...' : 'Execute'}
           </KibButtonNew>
         </div>
+        </>)}
+
       </div>
 
+      {/* Deployments Browser - rendered outside queryModeBar to allow full scrolling */}
+      {queryMode === 'deployments' && (
+        <DeploymentBrowser />
+      )}
+
+      {/* Actions Panel - rendered outside queryModeBar to allow full scrolling */}
+      {queryMode === 'actions' && (
+        <ActionsPanel />
+      )}
+
+      {/* Jira results - only show for Jira query modes */}
+      {queryMode !== 'deployments' && queryMode !== 'actions' && (<>
       {/* Executed JQL display */}
       {executedJql && (
         <div className={styles.jqlDisplay}>
@@ -623,6 +644,7 @@ export const ReleaseManagerDashboard: React.FC = () => {
           <p className={styles.emptyStateSubtext}>Fetching from Jira API...</p>
         </div>
       )}
+      </>)}
       <Chatbot pageType="release-manager" getPageData={getPageData} />
     </div>
   );

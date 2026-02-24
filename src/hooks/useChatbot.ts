@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
+import { getApiBaseUrl } from '@/utils/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = getApiBaseUrl();
 
 export interface ChatMessage {
   role: 'user' | 'assistant';

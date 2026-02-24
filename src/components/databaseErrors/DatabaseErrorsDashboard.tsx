@@ -5,8 +5,9 @@ import { ErrorDetailPanel } from './ErrorDetailPanel';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { Chatbot } from '@/components/chatbot/Chatbot';
+import { getApiBaseUrl } from '@/utils/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = getApiBaseUrl();
 
 export interface DatabaseError {
   serverName: string;

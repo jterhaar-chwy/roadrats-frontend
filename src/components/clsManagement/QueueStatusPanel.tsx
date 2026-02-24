@@ -2,8 +2,9 @@ import React, { useState, useCallback, useEffect } from 'react';
 import styles from '@/styles/clsManagement/queueStatusPanel.module.scss';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
+import { getApiBaseUrl } from '@/utils/api';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = getApiBaseUrl();
 
 interface QueueStatusItem {
   type: string | null;

@@ -47,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
             </Link>
             <Link href="/cls-management">
               <KibButtonNew size="small">
-                CLS Route Management
+                CLS Queue Management
               </KibButtonNew>
             </Link>
             <Link href="/srm-download">
@@ -63,6 +63,11 @@ export const Header: React.FC<HeaderProps> = ({
             <Link href="/release-manager">
               <KibButtonNew size="small">
                 Release Manager
+              </KibButtonNew>
+            </Link>
+            <Link href="/test-tools">
+              <KibButtonNew size="small">
+                Test Tools
               </KibButtonNew>
             </Link>
           </nav>

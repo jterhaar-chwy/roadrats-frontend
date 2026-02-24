@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { KibSectionHeading } from '@chewy/kib-content-groups-react';
 import { KibButtonNew } from '@chewy/kib-controls-react';
 import { Chatbot } from '@/components/chatbot/Chatbot';
+import { getApiBaseUrl } from '@/utils/api';
 import styles from '@/styles/srmDownload/srmDownload.module.scss';
 
 interface ProcessStatus {
@@ -66,6 +67,14 @@ export const SrmDownloadManager: React.FC = () => {
   const [validationFilters, setValidationFilters] = useState<Record<string, string>>({});
   const [scheduledVersion, setScheduledVersion] = useState<any>(null);
   const [isLoadingScheduledVersion, setIsLoadingScheduledVersion] = useState(false);
+  const [deltaSummary, setDeltaSummary] = useState<any>(null);
+  const [deltaVersionId, setDeltaVersionId] = useState<number | null>(null);
+  const [isLoadingDelta, setIsLoadingDelta] = useState(false);
+  const [deltaError, setDeltaError] = useState<string | null>(null);
+  const [deltaExpandedFC, setDeltaExpandedFC] = useState<string | null>(null);
+  const [deltaFilterFC, setDeltaFilterFC] = useState('');
+  const [deltaFilterRoute, setDeltaFilterRoute] = useState('');
+  const [deltaFilterChangeType, setDeltaFilterChangeType] = useState('');
   const [scheduledVersionError, setScheduledVersionError] = useState<string | null>(null);
 
   // Extract page data for chatbot (with size limits to prevent token issues)
@@ -203,7 +212,7 @@ export const SrmDownloadManager: React.FC = () => {
     addLog('info', 'Starting SRM validation...');
 
     try {
-      const response = await fetch('http://localhost:8080/api/srm/validate', {
+      const response = await fetch(`${getApiBaseUrl()}/api/srm/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -239,7 +248,7 @@ export const SrmDownloadManager: React.FC = () => {
   const loadRoutes = async () => {
     setIsLoadingRoutes(true);
     try {
-      const response = await fetch('http://localhost:8080/api/srm/routes');
+      const response = await fetch(`${getApiBaseUrl()}/api/srm/routes`);
       if (!response.ok) {
         throw new Error('Failed to load routes');
       }
@@ -258,7 +267,7 @@ export const SrmDownloadManager: React.FC = () => {
     setIsLoadingContent(true);
     setSelectedRoute(routeName);
     try {
-      const response = await fetch(`http://localhost:8080/api/srm/routes/${encodeURIComponent(routeName)}/contents`);
+      const response = await fetch(`${getApiBaseUrl()}/api/srm/routes/${encodeURIComponent(routeName)}/contents`);
       if (!response.ok) {
         throw new Error('Failed to load route content');
       }
@@ -276,7 +285,7 @@ export const SrmDownloadManager: React.FC = () => {
     setIsLoadingScheduledVersion(true);
     setScheduledVersionError(null);
     try {
-      const response = await fetch('http://localhost:8080/api/srm/scheduled-version');
+      const response = await fetch(`${getApiBaseUrl()}/api/srm/scheduled-version`);
       const data = await response.json();
       if (data.success) {
         setScheduledVersion(data);
@@ -298,6 +307,170 @@ export const SrmDownloadManager: React.FC = () => {
     fetchScheduledVersion();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fetchDeltaSummary = async (versionId: number) => {
+    setIsLoadingDelta(true);
+    setDeltaError(null);
+    setDeltaSummary(null);
+    setDeltaVersionId(versionId);
+    setDeltaExpandedFC(null);
+    setDeltaFilterFC('');
+    setDeltaFilterRoute('');
+    setDeltaFilterChangeType('');
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/srm/delta-summary?versionId=${versionId}`);
+      const data = await res.json();
+      if (data.success) {
+        setDeltaSummary(data);
+        addLog('success', `Delta summary loaded for version ${versionId}: ${data.summary?.totalChanges} changes`);
+      } else {
+        setDeltaError(data.error || 'Failed to fetch delta summary');
+        addLog('error', `Delta summary failed for version ${versionId}`, { error: data.error });
+      }
+    } catch (err: any) {
+      setDeltaError(err.message);
+      addLog('error', 'Error fetching delta summary', { message: err.message });
+    } finally {
+      setIsLoadingDelta(false);
+    }
+  };
+
+  const DELTA_DISPLAY_COLUMNS = [
+    { key: 'fulfillmentCenter', label: 'FC' },
+    { key: 'routeName', label: 'Route' },
+    { key: 'newRouteName', label: 'New Route' },
+    { key: 'changeType', label: 'Change Type' },
+    { key: 'currentCutTime', label: 'Cut Time' },
+    { key: 'currentPullTime', label: 'Pull Time' },
+    { key: 'newCutTime', label: 'New Cut Time' },
+    { key: 'newPullTime', label: 'New Pull Time' },
+    { key: 'destinationChangeSummary', label: 'Dest Change Summary' },
+    { key: 'numZips', label: '# of Zips' },
+  ];
+
+  const deltaProcessed = useMemo(() => {
+    if (!deltaSummary?.raw) return null;
+
+    const allChanges: any[] = [];
+    for (const [, changes] of Object.entries(deltaSummary.raw)) {
+      if (Array.isArray(changes)) allChanges.push(...changes);
+    }
+
+    const uniqueFCs = Array.from(new Set(allChanges.map((c: any) => c.fulfillmentCenter || '').filter(Boolean))).sort() as string[];
+    const uniqueRoutes = Array.from(new Set(allChanges.map((c: any) => c.routeName || '').filter(Boolean))).sort() as string[];
+    const uniqueChangeTypes = Array.from(new Set(allChanges.map((c: any) => c.changeType || '').filter(Boolean))).sort() as string[];
+
+    let filtered = allChanges;
+    if (deltaFilterFC) filtered = filtered.filter((c: any) => c.fulfillmentCenter === deltaFilterFC);
+    if (deltaFilterRoute) filtered = filtered.filter((c: any) => c.routeName === deltaFilterRoute);
+    if (deltaFilterChangeType) filtered = filtered.filter((c: any) => c.changeType === deltaFilterChangeType);
+
+    // Deduplicate by visible columns, summing numZips for duplicates
+    const dedupeKey = (c: any) => [
+      c.fulfillmentCenter, c.routeName, c.newRouteName, c.changeType,
+      c.currentCutTime, c.currentPullTime, c.newCutTime, c.newPullTime,
+      c.destinationChangeSummary
+    ].join('|');
+
+    const dedupeMap = new Map<string, any>();
+    for (const change of filtered) {
+      const key = dedupeKey(change);
+      if (!dedupeMap.has(key)) {
+        dedupeMap.set(key, { ...change, _dupeCount: 1 });
+      } else {
+        dedupeMap.get(key)._dupeCount += 1;
+      }
+    }
+    const deduped = Array.from(dedupeMap.values());
+
+    // Group by FC -> Route
+    const fcGroups: Record<string, { routes: Record<string, any[]>; totalZips: number }> = {};
+    for (const change of deduped) {
+      const fc = change.fulfillmentCenter || 'Unknown';
+      const route = change.routeName || 'Unknown';
+      if (!fcGroups[fc]) fcGroups[fc] = { routes: {}, totalZips: 0 };
+      if (!fcGroups[fc].routes[route]) fcGroups[fc].routes[route] = [];
+      fcGroups[fc].routes[route].push(change);
+      fcGroups[fc].totalZips += (change.numZips || 0);
+    }
+
+    return { fcGroups, uniqueFCs, uniqueRoutes, uniqueChangeTypes, totalFiltered: filtered.length, totalDeduped: deduped.length };
+  }, [deltaSummary, deltaFilterFC, deltaFilterRoute, deltaFilterChangeType]);
+
+  // Compare delta summary vs validation when both are available
+  const deltaComparison = useMemo(() => {
+    if (!deltaSummary?.raw || !validationResults?.deltaComparable) return null;
+
+    // Build a deduped delta map keyed by FC|route|changeType
+    // For delta, we need to normalize: ZIP_MOVE splits into NEW zips on newRoute and DELETED from routeName
+    const deltaEntries: Record<string, { fc: string; route: string; changeType: string; numZips: number }> = {};
+    for (const [, changes] of Object.entries(deltaSummary.raw)) {
+      if (!Array.isArray(changes)) continue;
+      for (const c of changes) {
+        // Normalize delta change types to validation types
+        // ZIP_MOVE = zips leaving routeName (DELETED) + zips arriving at newRouteName (NEW)
+        if (c.changeType === 'ZIP_MOVE') {
+          const delKey = `${c.fulfillmentCenter}|${c.routeName}|DELETED`;
+          if (deltaEntries[delKey]) deltaEntries[delKey].numZips += (c.numZips || 0);
+          else deltaEntries[delKey] = { fc: c.fulfillmentCenter, route: c.routeName, changeType: 'DELETED', numZips: c.numZips || 0 };
+
+          const newKey = `${c.fulfillmentCenter}|${c.newRouteName}|NEW`;
+          if (deltaEntries[newKey]) deltaEntries[newKey].numZips += (c.numZips || 0);
+          else deltaEntries[newKey] = { fc: c.fulfillmentCenter, route: c.newRouteName, changeType: 'NEW', numZips: c.numZips || 0 };
+        } else {
+          const key = `${c.fulfillmentCenter}|${c.routeName}|${c.changeType}`;
+          if (deltaEntries[key]) deltaEntries[key].numZips += (c.numZips || 0);
+          else deltaEntries[key] = { fc: c.fulfillmentCenter, route: c.routeName, changeType: c.changeType, numZips: c.numZips || 0 };
+        }
+      }
+    }
+
+    // Build validation map keyed the same way
+    const valEntries: Record<string, { fc: string; route: string; changeType: string; numZips: number }> = {};
+    for (const v of validationResults.deltaComparable) {
+      const key = `${v.fulfillmentCenter}|${v.routeName}|${v.changeType}`;
+      if (valEntries[key]) valEntries[key].numZips += v.numZips;
+      else valEntries[key] = { fc: v.fulfillmentCenter, route: v.routeName, changeType: v.changeType, numZips: v.numZips };
+    }
+
+    // Find all unique keys
+    const allKeys = Array.from(new Set(Object.keys(deltaEntries).concat(Object.keys(valEntries)))) as string[];
+    allKeys.sort();
+
+    const diffs: Array<{
+      fc: string; route: string; changeType: string;
+      deltaZips: number | null; valZips: number | null;
+      status: 'match' | 'delta_only' | 'val_only' | 'mismatch';
+    }> = [];
+
+    let matchCount = 0;
+    let diffCount = 0;
+
+    for (const key of allKeys) {
+      const d = deltaEntries[key];
+      const v = valEntries[key];
+      const fc = (d || v).fc;
+      const route = (d || v).route;
+      const changeType = (d || v).changeType;
+
+      if (d && v) {
+        if (d.numZips === v.numZips) {
+          matchCount++;
+        } else {
+          diffCount++;
+          diffs.push({ fc, route, changeType, deltaZips: d.numZips, valZips: v.numZips, status: 'mismatch' });
+        }
+      } else if (d && !v) {
+        diffCount++;
+        diffs.push({ fc, route, changeType, deltaZips: d.numZips, valZips: null, status: 'delta_only' });
+      } else {
+        diffCount++;
+        diffs.push({ fc, route, changeType, deltaZips: null, valZips: v.numZips, status: 'val_only' });
+      }
+    }
+
+    return { diffs, matchCount, diffCount, totalKeys: allKeys.length };
+  }, [deltaSummary, validationResults]);
+
   const loadExistingFiles = async () => {
     setIsProcessing(true);
     setLogs([]);
@@ -314,7 +487,7 @@ export const SrmDownloadManager: React.FC = () => {
       addLog('info', 'Calling POST /api/srm/load-existing');
       
       try {
-        const loadResponse = await fetch('http://localhost:8080/api/srm/load-existing', {
+        const loadResponse = await fetch(`${getApiBaseUrl()}/api/srm/load-existing`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -411,7 +584,7 @@ export const SrmDownloadManager: React.FC = () => {
         addLog('info', 'Calling GET /api/srm/version');
         
         try {
-          const versionResponse = await fetch('http://localhost:8080/api/srm/version');
+          const versionResponse = await fetch(`${getApiBaseUrl()}/api/srm/version`);
           addLog('info', `Response status: ${versionResponse.status} ${versionResponse.statusText}`);
           
           if (!versionResponse.ok) {
@@ -455,7 +628,7 @@ export const SrmDownloadManager: React.FC = () => {
       addLog('info', 'Calling POST /api/srm/execute-full-process');
       
       try {
-        const fullProcessResponse = await fetch('http://localhost:8080/api/srm/execute-full-process', {
+        const fullProcessResponse = await fetch(`${getApiBaseUrl()}/api/srm/execute-full-process`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ version }),
@@ -506,7 +679,7 @@ export const SrmDownloadManager: React.FC = () => {
         addLog('info', 'Calling POST /api/srm/copy-to-local');
         
         try {
-          const copyResponse = await fetch('http://localhost:8080/api/srm/copy-to-local', {
+          const copyResponse = await fetch(`${getApiBaseUrl()}/api/srm/copy-to-local`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -997,6 +1170,14 @@ export const SrmDownloadManager: React.FC = () => {
                             >
                               {isCurrent ? 'Selected' : 'Use'}
                             </button>
+                            <button
+                              className={`${styles.useVersionBtn} ${deltaVersionId === v.id ? styles.deltaActiveBtn : styles.deltaBtnSecondary}`}
+                              onClick={() => fetchDeltaSummary(v.id)}
+                              disabled={isLoadingDelta}
+                              title="View delta summary for this version"
+                            >
+                              {isLoadingDelta && deltaVersionId === v.id ? '...' : 'Delta'}
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1009,6 +1190,223 @@ export const SrmDownloadManager: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Delta Summary Panel */}
+          {(deltaSummary || isLoadingDelta || deltaError) && (
+            <div className={styles.deltaSummaryPanel}>
+              <div className={styles.deltaSummaryHeader}>
+                <h3>Delta Summary &mdash; Version {deltaVersionId}</h3>
+                {deltaSummary && (
+                  <button
+                    className={styles.useVersionBtn}
+                    onClick={() => { setDeltaSummary(null); setDeltaVersionId(null); setDeltaError(null); }}
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+
+              {isLoadingDelta && (
+                <div className={styles.scheduledVersionLoading}>Loading delta summary from SRM API...</div>
+              )}
+
+              {deltaError && (
+                <div className={styles.scheduledVersionError}>{deltaError}</div>
+              )}
+
+              {deltaSummary && deltaSummary.summary && deltaProcessed && (
+                <>
+                  {/* Summary cards */}
+                  <div className={styles.deltaSummaryCards}>
+                    <div className={styles.deltaSummaryCard}>
+                      <span className={styles.deltaSummaryValue}>{deltaSummary.summary.totalChanges}</span>
+                      <span className={styles.deltaSummaryLabel}>Total Changes</span>
+                    </div>
+                    <div className={styles.deltaSummaryCard}>
+                      <span className={styles.deltaSummaryValue}>{deltaSummary.summary.totalZipsAffected?.toLocaleString()}</span>
+                      <span className={styles.deltaSummaryLabel}>Zips Affected</span>
+                    </div>
+                    {deltaSummary.summary.changeTypeCounts && Object.entries(deltaSummary.summary.changeTypeCounts).map(([type, count]: [string, any]) => (
+                      <div key={type} className={styles.deltaSummaryCard}>
+                        <span className={styles.deltaSummaryValue}>{count}</span>
+                        <span className={`${styles.deltaSummaryLabel} ${styles[`deltaType${type.replace(/[^a-zA-Z]/g, '')}`] || ''}`}>{type.replace(/_/g, ' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Filters */}
+                  <div className={styles.deltaFilters}>
+                    <select
+                      value={deltaFilterFC}
+                      onChange={(e) => setDeltaFilterFC(e.target.value)}
+                      className={styles.deltaFilterSelect}
+                    >
+                      <option value="">All FCs ({deltaProcessed.uniqueFCs.length})</option>
+                      {deltaProcessed.uniqueFCs.map((fc: string) => (
+                        <option key={fc} value={fc}>{fc}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={deltaFilterRoute}
+                      onChange={(e) => setDeltaFilterRoute(e.target.value)}
+                      className={styles.deltaFilterSelect}
+                    >
+                      <option value="">All Routes ({deltaProcessed.uniqueRoutes.length})</option>
+                      {deltaProcessed.uniqueRoutes.map((r: string) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={deltaFilterChangeType}
+                      onChange={(e) => setDeltaFilterChangeType(e.target.value)}
+                      className={styles.deltaFilterSelect}
+                    >
+                      <option value="">All Change Types ({deltaProcessed.uniqueChangeTypes.length})</option>
+                      {deltaProcessed.uniqueChangeTypes.map((ct: string) => (
+                        <option key={ct} value={ct}>{ct.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                    {(deltaFilterFC || deltaFilterRoute || deltaFilterChangeType) && (
+                      <button
+                        className={styles.deltaFilterClear}
+                        onClick={() => { setDeltaFilterFC(''); setDeltaFilterRoute(''); setDeltaFilterChangeType(''); }}
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                    <span className={styles.deltaFilterCount}>
+                      {deltaProcessed.totalDeduped} unique rows ({deltaProcessed.totalFiltered} raw, {deltaSummary.summary.totalChanges} total)
+                    </span>
+                  </div>
+
+                  {/* Grouped by FC -> Route */}
+                  {Object.entries(deltaProcessed.fcGroups)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([fc, fcData]: [string, any]) => {
+                      const isExpanded = deltaExpandedFC === fc;
+                      const routeCount = Object.keys(fcData.routes).length;
+
+                      return (
+                        <div key={fc} className={styles.deltaChangeGroup}>
+                          <button
+                            className={styles.deltaChangeGroupHeader}
+                            onClick={() => setDeltaExpandedFC(isExpanded ? null : fc)}
+                          >
+                            <span className={styles.deltaChangeGroupTitle}>
+                              {isExpanded ? '▼' : '▶'} {fc}
+                            </span>
+                            <span className={styles.deltaChangeGroupMeta}>
+                              <span className={styles.deltaFcTag}>{routeCount} routes</span>
+                              <span className={styles.deltaFcTag}>{fcData.totalZips.toLocaleString()} zips</span>
+                            </span>
+                          </button>
+                          {isExpanded && (
+                            <div className={styles.deltaFcContent}>
+                              {Object.entries(fcData.routes)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([route, rows]: [string, any]) => {
+                                  const routeZips = rows.reduce((sum: number, r: any) => sum + (r.numZips || 0), 0);
+                                  return (
+                                    <div key={route} className={styles.deltaRouteSection}>
+                                      <div className={styles.deltaRouteHeader}>
+                                        <span className={styles.deltaRouteName}>{route}</span>
+                                        <span className={styles.deltaRouteMeta}>{rows.length} changes &middot; {routeZips} zips</span>
+                                      </div>
+                                      <div className={styles.deltaChangeTableWrapper}>
+                                        <table className={styles.deltaChangeTable}>
+                                          <thead>
+                                            <tr>
+                                              {DELTA_DISPLAY_COLUMNS.map((col) => (
+                                                <th key={col.key}>{col.label}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {rows.map((row: any, idx: number) => (
+                                              <tr key={idx}>
+                                                {DELTA_DISPLAY_COLUMNS.map((col) => (
+                                                  <td key={col.key} className={col.key === 'changeType' ? styles.deltaChangeTypeCell : ''}>
+                                                    {row[col.key] === null || row[col.key] === undefined || row[col.key] === ''
+                                                      ? <span className={styles.nullValue}>&mdash;</span>
+                                                      : String(row[col.key])}
+                                                  </td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Delta vs Validation Comparison */}
+          {deltaComparison && (
+            <div className={styles.comparisonPanel}>
+              <div className={styles.comparisonHeader}>
+                <h3>Delta vs Validation Comparison</h3>
+                <div className={styles.comparisonBadges}>
+                  <span className={styles.comparisonMatch}>{deltaComparison.matchCount} matching</span>
+                  {deltaComparison.diffCount > 0 && (
+                    <span className={styles.comparisonDiff}>{deltaComparison.diffCount} differences</span>
+                  )}
+                </div>
+              </div>
+
+              {deltaComparison.diffCount === 0 ? (
+                <div className={styles.comparisonAllMatch}>
+                  All {deltaComparison.totalKeys} route/change-type combinations match between delta summary and validation.
+                </div>
+              ) : (
+                <div className={styles.deltaChangeTableWrapper}>
+                  <table className={styles.deltaChangeTable}>
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>FC</th>
+                        <th>Route</th>
+                        <th>Change Type</th>
+                        <th>Delta Zips</th>
+                        <th>Validation Zips</th>
+                        <th>Diff</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deltaComparison.diffs.map((d: any, idx: number) => (
+                        <tr key={idx} className={styles[`comparison_${d.status}`] || ''}>
+                          <td>
+                            <span className={`${styles.comparisonStatusBadge} ${styles[`compStatus_${d.status}`] || ''}`}>
+                              {d.status === 'mismatch' ? 'Mismatch' : d.status === 'delta_only' ? 'Delta Only' : 'Validation Only'}
+                            </span>
+                          </td>
+                          <td>{d.fc}</td>
+                          <td>{d.route}</td>
+                          <td className={styles.deltaChangeTypeCell}>{d.changeType}</td>
+                          <td>{d.deltaZips !== null ? d.deltaZips : <span className={styles.nullValue}>&mdash;</span>}</td>
+                          <td>{d.valZips !== null ? d.valZips : <span className={styles.nullValue}>&mdash;</span>}</td>
+                          <td className={styles.comparisonDiffCell}>
+                            {d.deltaZips !== null && d.valZips !== null
+                              ? (d.deltaZips - d.valZips > 0 ? '+' : '') + (d.deltaZips - d.valZips)
+                              : <span className={styles.nullValue}>&mdash;</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Version Selection */}
           <div className={styles.versionSelection}>
